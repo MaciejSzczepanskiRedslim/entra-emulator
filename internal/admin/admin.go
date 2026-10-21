@@ -92,6 +92,7 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /admin/api/apps/{id}/roles/{roleId}", a.patchRole)
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/roles/{roleId}", a.deleteRole)
 
+	a.registerPermissions(mux)
 	mux.HandleFunc("POST /admin/api/tokens", a.forgeToken)
 	mux.HandleFunc("GET /admin/api/faults", a.getFaults)
 	mux.HandleFunc("POST /admin/api/faults", a.setFaults)

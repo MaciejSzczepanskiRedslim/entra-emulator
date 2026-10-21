@@ -376,7 +376,7 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 		// auto-granting every enabled Application-type role.
 		if assigned, has, err := i.Store.AssignedAppRoleValues(app.ID, resourceApp.ID); err == nil && has {
 			roles = append(roles, assigned...)
-		} else if all, err := i.Store.ListRoles(resourceApp.ID); err == nil {
+		} else if all, err := i.Store.ListRoles(resourceApp.ID); err == nil && !i.Cfg.StrictAppRoles {
 			for _, role := range all {
 				if role.IsEnabled && strings.Contains(role.AllowedMemberTypes, "Application") {
 					roles = append(roles, role.Value)

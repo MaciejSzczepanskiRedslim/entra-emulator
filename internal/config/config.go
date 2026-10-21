@@ -57,6 +57,7 @@ type Config struct {
 	// real Entra does. Off by default: the emulator has always accepted any
 	// valid Graph-audience token, so enabling it is opt-in.
 	GraphPermissions bool
+	StrictAppRoles   bool // no implicit application permissions; opt-in for permission tests
 	SeedOnStart      bool
 	// RequestLog prints one line per HTTP request. OFF by default: this is a
 	// dev server people leave running, and a request line per token refresh is
@@ -100,6 +101,7 @@ type fileConfig struct {
 	DBPath           *string         `json:"dbPath"`
 	RequirePassword  *bool           `json:"requirePassword"`
 	RequireConsent   *bool           `json:"requireConsent"`
+	StrictAppRoles   *bool           `json:"strictAppRoles"`
 	GraphPermissions *bool           `json:"graphPermissions"`
 	SeedOnStart      *bool           `json:"seedOnStart"`
 	RequestLog       *bool           `json:"requestLog"`
@@ -167,6 +169,7 @@ func Load(getenv func(string) string) (*Config, error) {
 	c.RequirePassword = resolveBool(getenv("REQUIRE_PASSWORD"), file.RequirePassword, false, "REQUIRE_PASSWORD", fail)
 	c.RequireConsent = resolveBool(getenv("REQUIRE_CONSENT"), file.RequireConsent, false, "REQUIRE_CONSENT", fail)
 	c.GraphPermissions = resolveBool(getenv("GRAPH_PERMISSIONS"), file.GraphPermissions, false, "GRAPH_PERMISSIONS", fail)
+	c.StrictAppRoles = resolveBool(getenv("STRICT_APP_ROLES"), file.StrictAppRoles, false, "STRICT_APP_ROLES", fail)
 	c.SeedOnStart = resolveBool(getenv("SEED_ON_START"), file.SeedOnStart, true, "SEED_ON_START", fail)
 	c.RequestLog = resolveBool(getenv("REQUEST_LOG"), file.RequestLog, false, "REQUEST_LOG", fail)
 	c.RecordResponses = getenv("RECORD_RESPONSES")

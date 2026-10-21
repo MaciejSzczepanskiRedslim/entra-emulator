@@ -34,6 +34,42 @@ func localAdmin(t *testing.T, base, method, path string, body any, want int) map
 	return value
 }
 
+func TestLocalExplicitApplicationRoles(t *testing.T) {
+	hts, cfg, _ := newTestServer(t)
+	cfg.StrictAppRoles = true
+	resource := "api://" + daemonID
+	baseline := appTokenForResource(t, hts.URL, resource)
+	if len(rolesOf(baseline)) != 0 || baseline["aud"] != resource {
+		t.Fatalf("unassigned service: %v", baseline)
+	}
+	dto := localAdmin(t, hts.URL, "GET", "apps/"+daemonID, nil, 200)
+	role := dto["appRoles"].([]any)[0].(map[string]any)
+	roleID := role["id"].(string)
+	path := "apps/" + daemonID + "/roleAssignments/" + daemonID + "/" + roleID
+	for range 2 {
+		localAdmin(t, hts.URL, "PUT", path, nil, 204)
+	}
+	assigned := appTokenForResource(t, hts.URL, resource)
+	if got := rolesOf(assigned); len(got) != 1 || got[0] != role["value"] {
+		t.Fatalf("assigned role: %v", assigned)
+	}
+	listed := localAdmin(t, hts.URL, "GET", "apps/"+daemonID+"/roleAssignments", nil, 200)
+	if len(listed["value"].([]any)) != 1 {
+		t.Fatalf("duplicate assignment: %v", listed)
+	}
+	localAdmin(t, hts.URL, "PATCH", "apps/"+daemonID+"/roles/"+roleID, map[string]any{"isEnabled": false}, 200)
+	if got := rolesOf(appTokenForResource(t, hts.URL, resource)); len(got) != 0 {
+		t.Fatalf("disabled role in fresh token: %v", got)
+	}
+	localAdmin(t, hts.URL, "PUT", path, nil, 400)
+	for range 2 {
+		localAdmin(t, hts.URL, "DELETE", path, nil, 204)
+	}
+	if got := rolesOf(appTokenForResource(t, hts.URL, resource)); len(got) != 0 {
+		t.Fatalf("unassigned role reappeared: %v", got)
+	}
+}
+
 func TestAdminFixedIdentityCreation(t *testing.T) {
 	hts, _, _ := newTestServer(t)
 	userID, appID := store.NewGUID(), store.NewGUID()

@@ -7,6 +7,8 @@ The admin API remains unauthenticated: expose it only to trusted local tools.
 
 ## Configuration
 
+- `STRICT_APP_ROLES=true` (`strictAppRoles` in JSON) requires explicit application
+  role assignments. A service without assignments receives no roles.
 - Set `PUBLIC_ORIGIN=https://entra.localhost:<port>` and
   `ISSUER=https://entra.localhost:<port>/<tenant>/v2.0` explicitly. Discovery and
   issued tokens use these values regardless of the incoming HTTP Host header.
@@ -30,3 +32,23 @@ strings go through the existing secret hashing code; import files are unnecessar
 bytes) to replay a declarative local secret. Omit it for the existing random,
 show-once behavior. Only its hash and a hint are stored. Use the existing secret
 listing/deletion API to avoid accumulating duplicates during reconciliation.
+
+## Application roles
+
+```http
+PUT /admin/api/apps/{clientAppId}/roleAssignments/{resourceAppId}/{roleId}
+DELETE /admin/api/apps/{clientAppId}/roleAssignments/{resourceAppId}/{roleId}
+GET /admin/api/apps/{clientAppId}/roleAssignments
+```
+
+PUT and DELETE are idempotent and return 204. PUT requires a registered, enabled
+role with `Application` in its allowed member types. DELETE also works after the
+role was disabled or deleted. GET returns
+`{"value":[{"id":"...","resourceId":"...","appRoleId":"..."}]}`.
+Assignment lookup uses the same store as Graph appRoleAssignments. Disabled roles,
+User-only roles and roles from another resource never appear in app-only tokens.
+
+Use existing `PATCH /admin/api/apps/{resourceAppId}/roles/{roleId}` or
+`/scopes/{scopeId}` with `{"isEnabled":false}` to disable a declaration. Changes
+apply to newly issued tokens; refresh tokens or sign in again to obtain updated
+claims.

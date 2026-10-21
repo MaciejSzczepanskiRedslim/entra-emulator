@@ -188,7 +188,7 @@ func (s *Store) AssignedAppRoleValues(principalID, resourceID string) (values []
 	rows, err := s.db.Query(
 		`SELECT ara.app_role_id, COALESCE(r.value,'')
 		   FROM app_role_assignments ara
-		   LEFT JOIN app_roles r ON r.id = ara.app_role_id
+		   LEFT JOIN app_roles r ON r.id = ara.app_role_id AND r.app_id = ara.resource_id AND r.is_enabled = 1 AND instr(',' || r.allowed_member_types || ',', ',Application,') > 0
 		  WHERE ara.principal_id=? AND ara.resource_id=?`, principalID, resourceID)
 	if err != nil {
 		return nil, false, err
