@@ -31,3 +31,15 @@ The image repository is `<login-server>/entra-emulator`. Each build publishes:
 
 Use a commit tag to pin a consumer to a particular build, or `dev` to test the
 latest development image.
+
+## Promote a tested image
+
+Consumers can use `<login-server>/entra-emulator:stable` as their tested baseline.
+After testing a commit tag, promote that exact image without rebuilding:
+
+```sh
+./scripts/push-acr.sh --promote dev-<12-character Git commit>
+```
+
+Normal builds update `dev` and leave `stable` unchanged. Promote an older commit
+tag with the same command to roll back `stable`.
