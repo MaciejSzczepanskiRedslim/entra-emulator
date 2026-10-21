@@ -373,6 +373,28 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 			resourceApp = byID
 		}
 	}
+	// An authorization code or refresh chain may outlive a scope being disabled.
+	// Re-read registered resource scopes whenever a new access token is minted.
+	if aud == resourceApp.ID || aud == resourceApp.AppIDURI {
+		exposed, err := s.Store.ListScopes(resourceApp.ID)
+		if err != nil {
+			return "", err
+		}
+		enabled := map[string]bool{}
+		for _, scope := range exposed {
+			if scope.IsEnabled {
+				enabled[scope.Value] = true
+			}
+		}
+		kept := make([]string, 0, len(scpNames))
+		for _, scope := range scpNames {
+			if enabled[scope] {
+				kept = append(kept, scope)
+			}
+		}
+		scpNames = kept
+		claims["scp"] = strings.Join(scpNames, " ")
+	}
 	// Delegated consent (docs/20-stateful-directory.md): when explicit
 	// oauth2PermissionGrants exist for (client, resource), scp is the requested
 	// scopes intersected with what was consented for this user; otherwise the

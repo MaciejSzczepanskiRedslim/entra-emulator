@@ -205,7 +205,7 @@ func (i *Identity) grantAuthorizationCode(w http.ResponseWriter, r *http.Request
 	// Comparing the two directly rejected every resource-qualified request, so
 	// resolve first and compare like for like.
 	if raw := SplitScopes(r.PostFormValue("scope")); len(raw) > 0 {
-		resolved := i.ResolveDelegatedScopes(raw)
+		resolved := i.ResolveDelegatedScopes(raw, app.ID)
 		if resolved == nil {
 			httpx.WriteOAuthError(w, "invalid_scope", "AADSTS70011: A requested scope is not registered.")
 			return
@@ -257,7 +257,7 @@ func (i *Identity) grantRefreshToken(w http.ResponseWriter, r *http.Request) {
 	// scope strings, the stored grant holds short names.
 	var narrowed, scopeEcho []string
 	if raw := SplitScopes(r.PostFormValue("scope")); len(raw) > 0 {
-		resolved := i.ResolveDelegatedScopes(raw)
+		resolved := i.ResolveDelegatedScopes(raw, app.ID)
 		if resolved == nil {
 			httpx.WriteOAuthError(w, "invalid_scope", "AADSTS70011: A requested scope is not registered.")
 			return

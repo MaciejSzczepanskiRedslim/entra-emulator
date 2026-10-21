@@ -70,6 +70,65 @@ func TestLocalExplicitApplicationRoles(t *testing.T) {
 	}
 }
 
+func TestLocalDefaultDelegatedScopesAcrossGrants(t *testing.T) {
+	hts, _, _ := newTestServer(t)
+	// The client is deliberately different from the API resource.
+	consentPath := "apps/" + spaID + "/preauthorizedScopes/" + daemonID
+	scopeID := store.NewGUID()
+	localAdmin(t, hts.URL, "POST", "apps/"+daemonID+"/scopes", map[string]any{"id": scopeID, "value": "local.read"}, 201)
+	localAdmin(t, hts.URL, "POST", "apps/"+daemonID+"/scopes", map[string]any{"value": "unconsented"}, 201)
+	localAdmin(t, hts.URL, "POST", "apps/"+daemonID+"/scopes", map[string]any{"value": "disabled", "isEnabled": false}, 201)
+	for range 2 {
+		localAdmin(t, hts.URL, "PUT", consentPath, map[string]any{"scopes": []string{"local.read", "disabled"}}, 200)
+	}
+	localAdmin(t, hts.URL, "PUT", consentPath, map[string]any{"scopes": []string{"nonexistent"}}, 400)
+	tokenURL := hts.URL + "/" + tenant + "/oauth2/v2.0/token"
+	scope := "api://" + daemonID + "/.default"
+	password := url.Values{"grant_type": {"password"}, "client_id": {spaID}, "scope": {scope + " openid offline_access"}, "username": {"alice@entraemulator.dev"}, "password": {store.SeedPassword}}
+	_, body := postForm(t, http.DefaultClient, tokenURL, password)
+	check := func(body map[string]any, want string) {
+		t.Helper()
+		token, _ := body["access_token"].(string)
+		if token == "" {
+			t.Fatalf("no token: %v", body)
+		}
+		claims := decodeJWTPayload(t, token)
+		if claims["aud"] != "api://"+daemonID || claims["scp"] != want {
+			t.Fatalf("claims want scp %q/aud %q: %v", want, "api://"+daemonID, claims)
+		}
+	}
+	check(body, "local.read")
+	// Exercise the account picker and code exchange used by MSAL.
+	verifier := "local-default-verifier-012345678901234567890"
+	query := baseAuthorizeQuery("code")
+	query.Set("scope", scope+" openid offline_access")
+	query.Set("code_challenge", pkceChallenge(verifier))
+	query.Set("code_challenge_method", "S256")
+	resp := authorizeAs(t, hts.URL, query)
+	resp.Body.Close()
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, exchange := postForm(t, http.DefaultClient, tokenURL, url.Values{"grant_type": {"authorization_code"}, "client_id": {spaID}, "code": {loc.Query().Get("code")}, "redirect_uri": {redirect}, "code_verifier": {verifier}, "scope": {scope + " openid offline_access"}})
+	check(exchange, "local.read")
+	// Refresh without an explicit scope must still remove disabled scopes.
+	localAdmin(t, hts.URL, "PATCH", "apps/"+daemonID+"/scopes/"+scopeID, map[string]any{"isEnabled": false}, 200)
+	_, refreshed := postForm(t, http.DefaultClient, tokenURL, url.Values{"grant_type": {"refresh_token"}, "client_id": {spaID}, "refresh_token": {exchange["refresh_token"].(string)}})
+	check(refreshed, "")
+	// Re-enabling and then revoking consent changes .default immediately.
+	localAdmin(t, hts.URL, "PATCH", "apps/"+daemonID+"/scopes/"+scopeID, map[string]any{"isEnabled": true}, 200)
+	localAdmin(t, hts.URL, "PUT", consentPath, map[string]any{"scopes": []string{}}, 200)
+	_, revoked := postForm(t, http.DefaultClient, tokenURL, password)
+	check(revoked, "")
+	// Another client cannot inherit this client's consent.
+	localAdmin(t, hts.URL, "PUT", consentPath, map[string]any{"scopes": []string{"local.read"}}, 200)
+	password.Set("client_id", daemonID)
+	password.Set("client_secret", store.SeedDaemonSecret)
+	_, other := postForm(t, http.DefaultClient, tokenURL, password)
+	check(other, "")
+}
+
 func TestAdminFixedIdentityCreation(t *testing.T) {
 	hts, _, _ := newTestServer(t)
 	userID, appID := store.NewGUID(), store.NewGUID()

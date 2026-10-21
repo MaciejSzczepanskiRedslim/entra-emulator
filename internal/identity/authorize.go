@@ -158,7 +158,7 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		redirectErr("invalid_scope", "The openid scope is required.")
 		return
 	}
-	if i.ResolveDelegatedScopes(scopes) == nil {
+	if i.ResolveDelegatedScopes(scopes, app.ID) == nil {
 		redirectErr("invalid_scope", "A requested resource scope is not registered.")
 		return
 	}
@@ -334,7 +334,7 @@ func (i *Identity) handleSignInSubmit(w http.ResponseWriter, r *http.Request) {
 
 // issueCodeAndDeliver mints the auth code and returns it per response_mode.
 func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState, app *store.App, user *store.User, amr string, authTime int64) {
-	resolved := i.ResolveDelegatedScopes(SplitScopes(st.Scope))
+	resolved := i.ResolveDelegatedScopes(SplitScopes(st.Scope), app.ID)
 	if resolved == nil {
 		i.deliverAuthorizeError(w, st, "invalid_scope", "A requested resource scope is not registered.")
 		return

@@ -74,7 +74,7 @@ func (i *Identity) handleDeviceAuthorization(w http.ResponseWriter, r *http.Requ
 		httpx.WriteOAuthError(w, "invalid_scope", "AADSTS70011: scope is required.")
 		return
 	}
-	if i.ResolveDelegatedScopes(scopes) == nil {
+	if i.ResolveDelegatedScopes(scopes, app.ID) == nil {
 		httpx.WriteOAuthError(w, "invalid_scope", "AADSTS70011: A requested scope is not registered.")
 		return
 	}
@@ -172,7 +172,7 @@ func (i *Identity) grantDeviceCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	scopes := strings.Fields(consumed.Scopes)
-	resolved := i.ResolveDelegatedScopes(scopes)
+	resolved := i.ResolveDelegatedScopes(scopes, app.ID)
 	if resolved == nil {
 		httpx.WriteOAuthError(w, "invalid_grant", "AADSTS70019: The granted scopes are no longer valid.")
 		return

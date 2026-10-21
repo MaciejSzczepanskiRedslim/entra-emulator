@@ -1,5 +1,22 @@
 package store
 
+// SetTenantConsent atomically replaces tenant-wide consent for a client/resource.
+// Keeping an empty grant is intentional: it must not fall back to auto-consent.
+func (s *Store) SetTenantConsent(clientID, resourceID, scope string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM oauth2_permission_grants WHERE client_id=? AND resource_id=? AND consent_type='AllPrincipals'`, clientID, resourceID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO oauth2_permission_grants (id,client_id,consent_type,resource_id,scope,created_at) VALUES (?,?,'AllPrincipals',?,?,?)`, NewGUID(), clientID, resourceID, scope, s.Now()); err != nil {
+		return mapConstraint(err)
+	}
+	return tx.Commit()
+}
+
 // SetApplicationRole is idempotent even when the assignment originated in Graph.
 func (s *Store) SetApplicationRole(clientID, resourceID, roleID string, assigned bool) error {
 	if !assigned {

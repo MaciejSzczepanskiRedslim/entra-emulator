@@ -33,6 +33,30 @@ bytes) to replay a declarative local secret. Omit it for the existing random,
 show-once behavior. Only its hash and a hint are stored. Use the existing secret
 listing/deletion API to avoid accumulating duplicates during reconciliation.
 
+## Delegated preauthorization
+
+```http
+PUT /admin/api/apps/{clientAppId}/preauthorizedScopes/{resourceAppId}
+Content-Type: application/json
+
+{"scopes":["access_as_user","user_impersonation"]}
+```
+
+This atomically replaces tenant-wide consent for that pair. An empty list revokes
+all tenant-wide consent while keeping an explicit empty grant. Scope values must
+be declared by the resource; disabled scopes may remain preauthorized but never
+appear in a newly minted access token. Client/resource must share a tenant.
+`GET` at the same URL returns `{"scopes":[...]}` including disabled declarations.
+Per-user grants created through Graph remain independent.
+
+Delegated `<resource>/.default` expands only the requesting client's stored
+consent, intersected with enabled exposed scopes. User-specific consent is
+intersected again for the actual user before minting. No consent gives an empty
+`scp`; it does not implicitly grant every API scope. Authorization code, password,
+device code, refresh and OBO resolution pass the requesting client identity. A
+refresh chain or code issued before a scope was disabled cannot restore it.
+Explicit named delegated scopes retain the existing emulator behavior.
+
 ## Application roles
 
 ```http

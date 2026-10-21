@@ -64,7 +64,7 @@ func (i *Identity) grantOnBehalfOf(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Downstream scopes → resolve the target resource.
-	resolved := i.ResolveDelegatedScopes(SplitScopes(r.PostFormValue("scope")))
+	resolved := i.ResolveDelegatedScopes(SplitScopes(r.PostFormValue("scope")), app.ID)
 	if resolved == nil {
 		httpx.WriteOAuthError(w, "invalid_scope", "AADSTS70011: A requested scope is not registered.")
 		return

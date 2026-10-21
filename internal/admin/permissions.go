@@ -20,6 +20,8 @@ func validFixedID(w http.ResponseWriter, id string) bool {
 }
 
 func (a *Admin) registerPermissions(mux *http.ServeMux) {
+	mux.HandleFunc("GET /admin/api/apps/{id}/preauthorizedScopes/{resourceId}", a.preauthorizedScopes)
+	mux.HandleFunc("PUT /admin/api/apps/{id}/preauthorizedScopes/{resourceId}", a.preauthorizedScopes)
 	mux.HandleFunc("GET /admin/api/apps/{id}/roleAssignments", a.listRoleAssignments)
 	mux.HandleFunc("PUT /admin/api/apps/{id}/roleAssignments/{resourceId}/{roleId}", a.setRoleAssignment)
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/roleAssignments/{resourceId}/{roleId}", a.setRoleAssignment)
@@ -41,6 +43,58 @@ func (a *Admin) permissionApps(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+func (a *Admin) preauthorizedScopes(w http.ResponseWriter, r *http.Request) {
+	if !a.permissionApps(w, r) {
+		return
+	}
+	client, resource := r.PathValue("id"), r.PathValue("resourceId")
+	if r.Method == http.MethodPut {
+		var body struct {
+			Scopes []string `json:"scopes"`
+		}
+		if !decodeBody(w, r, &body) {
+			return
+		}
+		exposed, err := a.Store.ListScopes(resource)
+		if err != nil {
+			writeStoreErr(w, err)
+			return
+		}
+		known := map[string]bool{}
+		for _, scope := range exposed {
+			known[scope.Value] = true
+		}
+		for _, scope := range body.Scopes {
+			if !known[scope] {
+				httpx.WriteAdminError(w, 400, "invalid_reference", "Scope is not exposed by the resource: "+scope)
+				return
+			}
+		}
+		if err := a.Store.SetTenantConsent(client, resource, strings.Join(body.Scopes, " ")); err != nil {
+			writeStoreErr(w, err)
+			return
+		}
+	}
+	scopes, _, err := a.Store.ConsentedScopes(client, resource, "")
+	if err != nil {
+		writeStoreErr(w, err)
+		return
+	}
+	// Resource declaration order gives a stable response without a second sort.
+	exposed, err := a.Store.ListScopes(resource)
+	if err != nil {
+		writeStoreErr(w, err)
+		return
+	}
+	values := []string{}
+	for _, scope := range exposed {
+		if scopes[scope.Value] {
+			values = append(values, scope.Value)
+		}
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"scopes": values})
 }
 
 func (a *Admin) setRoleAssignment(w http.ResponseWriter, r *http.Request) {

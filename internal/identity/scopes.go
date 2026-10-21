@@ -57,12 +57,14 @@ type ResolvedScopes struct {
 //     names) grant with aud=Graph and short names in scp.
 //   - "<app_id_uri>/<scope>" or "<appId>/<scope>" grants a registered,
 //     enabled exposed scope of that app and sets the resource audience.
+//   - "<resource>/.default" expands the requesting client's stored consent,
+//     intersected with the resource's enabled exposed scopes.
 //   - Bare unknown scope names are tolerated leniently
 //     and granted with the default Graph audience.
 //
 // Returns nil when a resource-qualified scope refers to an unknown app or
 // unregistered scope value.
-func (i *Identity) ResolveDelegatedScopes(scopes []string) *ResolvedScopes {
+func (i *Identity) ResolveDelegatedScopes(scopes []string, clientID ...string) *ResolvedScopes {
 	out := &ResolvedScopes{Requested: scopes}
 	graphPrefix := i.Cfg.GraphResourceID + "/"
 	fabricPrefix := fabricResource + "/"
@@ -101,13 +103,44 @@ func (i *Identity) ResolveDelegatedScopes(scopes []string) *ResolvedScopes {
 			idx := strings.LastIndex(sc, "/")
 			resource, name := sc[:idx], sc[idx+1:]
 			app := i.findResourceApp(resource)
-			if app == nil || !i.appExposesScope(app, name) {
+			if app == nil {
 				return nil
 			}
-			if !out.setResource(resource) {
-				return nil // one resource per request
+			aud := resource
+			if !out.setResource(aud) {
+				return nil
 			}
-			out.Granted = append(out.Granted, name)
+			if name == ".default" {
+				if len(clientID) == 0 || clientID[0] == "" {
+					return nil
+				}
+				grants, err := i.Store.ListOAuth2Grants()
+				if err != nil {
+					return nil
+				}
+				allowed := map[string]bool{}
+				for _, grant := range grants {
+					if grant.ClientID == clientID[0] && grant.ResourceID == app.ID {
+						for _, value := range strings.Fields(grant.Scope) {
+							allowed[value] = true
+						}
+					}
+				}
+				exposed, err := i.Store.ListScopes(app.ID)
+				if err != nil {
+					return nil
+				}
+				for _, scope := range exposed {
+					if scope.IsEnabled && allowed[scope.Value] {
+						out.Granted = append(out.Granted, scope.Value)
+					}
+				}
+			} else {
+				if !i.appExposesScope(app, name) {
+					return nil
+				}
+				out.Granted = append(out.Granted, name)
+			}
 		default:
 			// Lenient: bare non-OIDC scope names pass through
 			// (auto-consent posture; unknown names are harmless locally).

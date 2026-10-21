@@ -30,7 +30,7 @@ func (i *Identity) grantResourceOwnerPassword(w http.ResponseWriter, r *http.Req
 		return
 	}
 	scopes := SplitScopes(rawScope)
-	resolved := i.ResolveDelegatedScopes(scopes)
+	resolved := i.ResolveDelegatedScopes(scopes, app.ID)
 	if resolved == nil {
 		httpx.WriteOAuthError(w, "invalid_scope", "AADSTS70011: A requested scope is not registered.")
 		return
