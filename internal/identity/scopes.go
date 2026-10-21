@@ -107,6 +107,9 @@ func (i *Identity) ResolveDelegatedScopes(scopes []string, clientID ...string) *
 				return nil
 			}
 			aud := resource
+			if i.Cfg.GUIDAPIAudience {
+				aud = app.ID
+			}
 			if !out.setResource(aud) {
 				return nil
 			}

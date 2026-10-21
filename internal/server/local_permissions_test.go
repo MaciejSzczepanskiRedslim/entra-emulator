@@ -36,10 +36,10 @@ func localAdmin(t *testing.T, base, method, path string, body any, want int) map
 
 func TestLocalExplicitApplicationRoles(t *testing.T) {
 	hts, cfg, _ := newTestServer(t)
-	cfg.StrictAppRoles = true
+	cfg.StrictAppRoles, cfg.GUIDAPIAudience = true, true
 	resource := "api://" + daemonID
 	baseline := appTokenForResource(t, hts.URL, resource)
-	if len(rolesOf(baseline)) != 0 || baseline["aud"] != resource || baseline["idtyp"] != "app" {
+	if len(rolesOf(baseline)) != 0 || baseline["aud"] != daemonID || baseline["idtyp"] != "app" {
 		t.Fatalf("unassigned service: %v", baseline)
 	}
 	dto := localAdmin(t, hts.URL, "GET", "apps/"+daemonID, nil, 200)
@@ -74,7 +74,8 @@ func TestLocalExplicitApplicationRoles(t *testing.T) {
 }
 
 func TestLocalDefaultDelegatedScopesAcrossGrants(t *testing.T) {
-	hts, _, _ := newTestServer(t)
+	hts, cfg, _ := newTestServer(t)
+	cfg.GUIDAPIAudience = true
 	// The client is deliberately different from the API resource.
 	consentPath := "apps/" + spaID + "/preauthorizedScopes/" + daemonID
 	scopeID := store.NewGUID()
@@ -96,8 +97,8 @@ func TestLocalDefaultDelegatedScopesAcrossGrants(t *testing.T) {
 			t.Fatalf("no token: %v", body)
 		}
 		claims := decodeJWTPayload(t, token)
-		if claims["aud"] != "api://"+daemonID || claims["scp"] != want {
-			t.Fatalf("claims want scp %q/aud %q: %v", want, "api://"+daemonID, claims)
+		if claims["aud"] != daemonID || claims["scp"] != want {
+			t.Fatalf("claims want scp %q/aud %q: %v", want, daemonID, claims)
 		}
 	}
 	check(body, "local.read")

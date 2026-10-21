@@ -9,6 +9,9 @@ The admin API remains unauthenticated: expose it only to trusted local tools.
 
 - `STRICT_APP_ROLES=true` (`strictAppRoles` in JSON) requires explicit application
   role assignments. A service without assignments receives no roles.
+- `GUID_API_AUDIENCE=true` (`guidApiAudience`) uses the registered resource's app
+  GUID as `aud` for delegated and app-only v2 tokens, including requests using
+  its `api://...` URI. First-party resource carve-outs retain their audiences.
 - Set `PUBLIC_ORIGIN=https://entra.localhost:<port>` and
   `ISSUER=https://entra.localhost:<port>/<tenant>/v2.0` explicitly. Discovery and
   issued tokens use these values regardless of the incoming HTTP Host header.
