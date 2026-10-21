@@ -300,6 +300,7 @@ func (a *Admin) listUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 type userBody struct {
+	ID                string  `json:"id"`
 	UserPrincipalName *string `json:"userPrincipalName"`
 	DisplayName       *string `json:"displayName"`
 	GivenName         *string `json:"givenName"`
@@ -338,6 +339,12 @@ func (a *Admin) createUser(w http.ResponseWriter, r *http.Request) {
 		ID: store.NewGUID(), TenantID: a.Cfg.TenantID,
 		UserPrincipalName: *b.UserPrincipalName, DisplayName: *b.DisplayName,
 		AccountEnabled: true, CreatedAt: a.Store.Now(),
+	}
+	if b.ID != "" {
+		if !validFixedID(w, b.ID) {
+			return
+		}
+		u.ID = b.ID
 	}
 	applyUserBody(u, &b)
 	if b.Password != nil && *b.Password != "" {

@@ -217,6 +217,7 @@ func (a *Admin) listApps(w http.ResponseWriter, r *http.Request) {
 }
 
 type appBody struct {
+	ID                    string  `json:"id"`
 	DisplayName           *string `json:"displayName"`
 	TenantID              *string `json:"tenantId"` // multi-tenant (roadmap #15b); defaults to home
 	IsConfidential        *bool   `json:"isConfidential"`
@@ -253,6 +254,12 @@ func (a *Admin) createApp(w http.ResponseWriter, r *http.Request) {
 	app := &store.App{
 		ID: store.NewGUID(), TenantID: tenantID, DisplayName: *b.DisplayName,
 		GroupMembershipClaims: "None", CreatedAt: a.Store.Now(),
+	}
+	if b.ID != "" {
+		if !validFixedID(w, b.ID) {
+			return
+		}
+		app.ID = b.ID
 	}
 	applyAppBody(app, &b)
 	if err := a.Store.CreateApp(app); err != nil {
@@ -389,13 +396,21 @@ func (a *Admin) addSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body := struct {
+		SecretText    string `json:"secretText"`
 		DisplayName   string `json:"displayName"`
 		ExpiresInDays int    `json:"expiresInDays"`
 	}{}
 	if r.ContentLength > 0 && !decodeBody(w, r, &body) {
 		return
 	}
-	plaintext := store.NewOpaqueToken(32)
+	plaintext := body.SecretText
+	if plaintext == "" {
+		plaintext = store.NewOpaqueToken(32)
+	}
+	if len(plaintext) < 8 {
+		httpx.WriteAdminError(w, 400, "validation_error", "secretText must contain at least 8 bytes.")
+		return
+	}
 	hash, err := store.HashSecret(plaintext)
 	if err != nil {
 		writeStoreErr(w, err)
@@ -433,6 +448,7 @@ func (a *Admin) addScope(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body := struct {
+		ID                      string `json:"id"`
 		Value                   string `json:"value"`
 		AdminConsentDisplayName string `json:"adminConsentDisplayName"`
 		IsEnabled               *bool  `json:"isEnabled"`
@@ -449,6 +465,12 @@ func (a *Admin) addScope(w http.ResponseWriter, r *http.Request) {
 		ID: store.NewGUID(), AppID: r.PathValue("id"), Value: body.Value,
 		AdminConsentDisplayName: body.AdminConsentDisplayName,
 		IsEnabled:               body.IsEnabled == nil || *body.IsEnabled,
+	}
+	if body.ID != "" {
+		if !validFixedID(w, body.ID) {
+			return
+		}
+		sc.ID = body.ID
 	}
 	if err := a.Store.AddScope(sc); err != nil {
 		writeStoreErr(w, err)
@@ -513,6 +535,7 @@ func (a *Admin) addRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body := struct {
+		ID                 string   `json:"id"`
 		Value              string   `json:"value"`
 		DisplayName        string   `json:"displayName"`
 		AllowedMemberTypes []string `json:"allowedMemberTypes"`
@@ -534,6 +557,12 @@ func (a *Admin) addRole(w http.ResponseWriter, r *http.Request) {
 		ID: store.NewGUID(), AppID: r.PathValue("id"), Value: body.Value,
 		DisplayName: body.DisplayName, AllowedMemberTypes: types,
 		IsEnabled: body.IsEnabled == nil || *body.IsEnabled,
+	}
+	if body.ID != "" {
+		if !validFixedID(w, body.ID) {
+			return
+		}
+		role.ID = body.ID
 	}
 	if err := a.Store.AddRole(role); err != nil {
 		writeStoreErr(w, err)
