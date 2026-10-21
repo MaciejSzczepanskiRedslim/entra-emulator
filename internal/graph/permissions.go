@@ -172,7 +172,7 @@ func (g *Graph) permissionDenied(r *http.Request, tok *tokens.ValidatedToken) st
 	}
 	req := graphRequirement(r.Method, res)
 
-	if tok.OID != "" { // delegated
+	if tok.IsDelegated() { // delegated
 		if len(req.delegated) == 0 || hasAny(tok.Scopes, req.delegated) {
 			return ""
 		}

@@ -161,8 +161,8 @@ func TestAzidentityWorkloadIdentityFederation(t *testing.T) {
 			t.Errorf("appid = %v, want the federated app", claims["appid"])
 		}
 		// App-only: no user was involved anywhere in this flow.
-		if _, hasOID := claims["oid"]; hasOID {
-			t.Errorf("federated token carries oid %v — it should be app-only", claims["oid"])
+		if oid, _ := claims["oid"].(string); oid == "" || oid == claims["appid"] || claims["idtyp"] != "app" {
+			t.Errorf("federated token lacks a distinct service-principal identity: %v", claims)
 		}
 	})
 

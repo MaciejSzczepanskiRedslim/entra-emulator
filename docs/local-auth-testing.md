@@ -33,6 +33,20 @@ bytes) to replay a declarative local secret. Omit it for the existing random,
 show-once behavior. Only its hash and a hint are stored. Use the existing secret
 listing/deletion API to avoid accumulating duplicates during reconciliation.
 
+Every app DTO includes `servicePrincipalId`. App-only tokens contain:
+
+- `oid`: that service-principal object ID;
+- `idtyp`: `app`;
+- `azp`, `appid`, and `sub`: the app/client ID.
+
+The object ID is tenant-specific and distinct from the client ID. Its stable
+algorithm is SHA-256 of UTF-8
+`entra-emulator:service-principal:<tenantId>:<appId>`, first 16 bytes, setting UUID
+version bits to 8 and RFC 4122 variant bits, formatted as a lowercase UUID. Prefer
+reading the DTO over duplicating this algorithm. Directory resets and recreation
+with the same tenant/app IDs preserve it. The Graph directory continues using app
+IDs for service-principal navigation; admin URLs below also take **app IDs**.
+
 ## Delegated preauthorization
 
 ```http

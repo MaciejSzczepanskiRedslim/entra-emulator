@@ -30,7 +30,7 @@ type Service struct {
 var protectedClaims = map[string]bool{
 	"iss": true, "aud": true, "exp": true, "iat": true, "nbf": true,
 	"sub": true, "tid": true, "oid": true, "azp": true, "appid": true,
-	"scp": true, "roles": true, "ver": true, "nonce": true,
+	"scp": true, "roles": true, "ver": true, "nonce": true, "idtyp": true,
 	"name": true, "preferred_username": true, "email": true,
 }
 
@@ -287,6 +287,7 @@ func (s *Service) BuildAppOnlyResponse(app *store.App, aud string, roles []strin
 		"iss": s.issuerForTenant(tid), "sub": app.ID, "aud": aud,
 		"iat": now, "nbf": now, "exp": now + int64(appAccessSec),
 		"tid": tid, "azp": app.ID, "appid": app.ID,
+		"oid": store.ServicePrincipalID(tid, app.ID), "idtyp": "app",
 		"roles": roles, "ver": "2.0",
 	}
 	jwt, err := s.signTenant(tid, claims)
@@ -749,7 +750,7 @@ const clockSkewSeconds = 60
 // ValidatedToken is the decoded, verified access token.
 type ValidatedToken struct {
 	Claims map[string]any
-	OID    string // empty for app-only tokens
+	OID    string // user or service-principal object ID
 	Sub    string
 	Scopes []string
 }
@@ -827,6 +828,12 @@ func hasScope(scopes []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// IsDelegated distinguishes a user from an application even though both have oid.
+// The empty-oid guard retains support for older emulator/system tokens.
+func (v *ValidatedToken) IsDelegated() bool {
+	return v.OID != "" && v.Claims["idtyp"] != "app"
 }
 
 // scopeNamesOnly strips any resource prefix from scope values for `scp`

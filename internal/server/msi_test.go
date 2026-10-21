@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+
+	"github.com/calvinchengx/entra-emulator/internal/store"
 )
 
 const msiSecret = "managed-identity-secret" // default dev value
@@ -72,8 +74,8 @@ func TestMSISystemAssigned(t *testing.T) {
 	if claims["sub"] != daemonID {
 		t.Fatalf("app-only sub should be the identity appId: %v", claims["sub"])
 	}
-	if _, hasOID := claims["oid"]; hasOID {
-		t.Fatal("managed-identity token is app-only; must not carry oid")
+	if claims["oid"] != store.ServicePrincipalID(tenant, daemonID) || claims["idtyp"] != "app" {
+		t.Fatalf("managed-identity token object identity: %v", claims)
 	}
 }
 

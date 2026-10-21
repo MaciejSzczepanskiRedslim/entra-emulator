@@ -136,7 +136,7 @@ func (g *Graph) requireBearer(next handler) http.HandlerFunc {
 
 func (g *Graph) requireDelegated(next handler) http.HandlerFunc {
 	return g.requireBearer(func(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
-		if tok.OID == "" {
+		if !tok.IsDelegated() {
 			httpx.WriteGraphError(w, http.StatusForbidden, "Authorization_RequestDenied",
 				"An app-only token cannot access /me.")
 			return
@@ -194,7 +194,7 @@ func (g *Graph) requireDelegatedUserInfo(next handler) http.HandlerFunc {
 				map[string]string{"error": "invalid_token", "error_description": msg})
 			return
 		}
-		if tok.OID == "" {
+		if !tok.IsDelegated() {
 			w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope"`)
 			httpx.WriteJSON(w, http.StatusForbidden,
 				map[string]string{"error": "insufficient_scope", "error_description": "UserInfo requires a user (delegated) token."})

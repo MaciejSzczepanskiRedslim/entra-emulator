@@ -2,6 +2,7 @@ package store
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 )
@@ -24,4 +25,13 @@ func NewOpaqueToken(n int) string {
 		panic(err)
 	}
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// ServicePrincipalID is the stable tenant-local object identity of an application.
+// It deliberately differs from the app/client ID and survives directory resets.
+func ServicePrincipalID(tenantID, appID string) string {
+	digest := sha256.Sum256([]byte("entra-emulator:service-principal:" + tenantID + ":" + appID))
+	digest[6] = (digest[6] & 0x0f) | 0x80 // RFC 9562 custom UUID (version 8)
+	digest[8] = (digest[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", digest[:4], digest[4:6], digest[6:8], digest[8:10], digest[10:16])
 }

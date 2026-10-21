@@ -180,7 +180,8 @@ func (a *Admin) appDTO(app *store.App) map[string]any {
 		})
 	}
 	return map[string]any{
-		"id": app.ID, "displayName": app.DisplayName, "isConfidential": app.IsConfidential,
+		"servicePrincipalId": store.ServicePrincipalID(app.TenantID, app.ID),
+		"id":                 app.ID, "displayName": app.DisplayName, "isConfidential": app.IsConfidential,
 		"appIdUri": nullable(app.AppIDURI), "redirectUris": redirectDTOs,
 		"exposedScopes": scopeDTOs, "appRoles": roleDTOs, "secrets": secretDTOs,
 		"groupMembershipClaims": app.GroupMembershipClaims,

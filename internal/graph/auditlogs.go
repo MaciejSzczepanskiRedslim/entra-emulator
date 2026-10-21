@@ -120,7 +120,9 @@ func (g *Graph) recordChange(tok *tokens.ValidatedToken, activity, category, tar
 		if appID, _ := tok.Claims["appid"].(string); appID != "" {
 			e.InitiatedByAppID = appID
 		}
-		e.InitiatedByUser = tok.OID
+		if tok.IsDelegated() {
+			e.InitiatedByUser = tok.OID
+		}
 		if upn, _ := tok.Claims["preferred_username"].(string); upn != "" {
 			e.InitiatedByUPN = upn
 		}

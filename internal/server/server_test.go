@@ -176,8 +176,8 @@ func TestClientCredentials(t *testing.T) {
 	if !strings.Contains(string(roles), "Tasks.Read.All") {
 		t.Fatalf("roles missing Tasks.Read.All: %s", roles)
 	}
-	if _, hasOID := claims["oid"]; hasOID {
-		t.Fatal("app-only token must not carry oid")
+	if claims["oid"] != store.ServicePrincipalID(tenant, daemonID) || claims["idtyp"] != "app" {
+		t.Fatalf("app-only token object identity: %v", claims)
 	}
 	if _, hasIDToken := body["id_token"]; hasIDToken {
 		t.Fatal("client_credentials must not return id_token")

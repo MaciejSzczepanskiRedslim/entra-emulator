@@ -52,7 +52,7 @@ func (i *Identity) grantOnBehalfOf(w http.ResponseWriter, r *http.Request) {
 			"AADSTS500131: The assertion is invalid or not addressed to this application: "+err.Error())
 		return
 	}
-	if validated.OID == "" {
+	if !validated.IsDelegated() {
 		httpx.WriteOAuthError(w, "invalid_grant",
 			"AADSTS500131: On-Behalf-Of requires a delegated (user) assertion.")
 		return

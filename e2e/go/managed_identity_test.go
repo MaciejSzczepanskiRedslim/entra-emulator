@@ -54,7 +54,7 @@ func TestManagedIdentityViaAzidentity(t *testing.T) {
 	if aud, _ := claims["aud"].(string); !strings.HasPrefix(aud, "https://management.azure.com") {
 		t.Fatalf("unexpected managed-identity token aud: %v", claims["aud"])
 	}
-	if _, hasOID := claims["oid"]; hasOID {
-		t.Fatal("managed-identity token must be app-only (no oid)")
+	if oid, _ := claims["oid"].(string); oid == "" || oid == claims["appid"] || claims["idtyp"] != "app" {
+		t.Fatalf("managed-identity token lacks a distinct service-principal identity: %v", claims)
 	}
 }

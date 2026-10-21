@@ -39,10 +39,13 @@ func TestLocalExplicitApplicationRoles(t *testing.T) {
 	cfg.StrictAppRoles = true
 	resource := "api://" + daemonID
 	baseline := appTokenForResource(t, hts.URL, resource)
-	if len(rolesOf(baseline)) != 0 || baseline["aud"] != resource {
+	if len(rolesOf(baseline)) != 0 || baseline["aud"] != resource || baseline["idtyp"] != "app" {
 		t.Fatalf("unassigned service: %v", baseline)
 	}
 	dto := localAdmin(t, hts.URL, "GET", "apps/"+daemonID, nil, 200)
+	if baseline["oid"] != dto["servicePrincipalId"] || baseline["oid"] == daemonID {
+		t.Fatalf("SP object id: %v / %v", baseline, dto)
+	}
 	role := dto["appRoles"].([]any)[0].(map[string]any)
 	roleID := role["id"].(string)
 	path := "apps/" + daemonID + "/roleAssignments/" + daemonID + "/" + roleID
@@ -140,17 +143,18 @@ func TestAdminFixedIdentityCreation(t *testing.T) {
 	user["userPrincipalName"] = "other@local.test"
 	localAdmin(t, hts.URL, "POST", "users", user, 400)
 	app := localAdmin(t, hts.URL, "POST", "apps", map[string]any{"id": appID, "displayName": "Local app", "isConfidential": true}, 201)
-	if app["id"] != appID {
+	oid := app["servicePrincipalId"]
+	if app["id"] != appID || oid == appID {
 		t.Fatalf("app identity: %v", app)
 	}
 	localAdmin(t, hts.URL, "POST", "apps/"+appID+"/secrets", map[string]any{"secretText": "known-local-secret"}, 201)
 	_, body := postForm(t, http.DefaultClient, hts.URL+"/"+tenant+"/oauth2/v2.0/token", url.Values{"grant_type": {"client_credentials"}, "client_id": {appID}, "client_secret": {"known-local-secret"}, "scope": {"https://graph.microsoft.com/.default"}})
-	if token, _ := body["access_token"].(string); token == "" {
+	if token, _ := body["access_token"].(string); token == "" || decodeJWTPayload(t, token)["oid"] != oid {
 		t.Fatalf("fixed-secret authentication: %v", body)
 	}
 	localAdmin(t, hts.URL, "DELETE", "apps/"+appID, nil, 204)
 	recreated := localAdmin(t, hts.URL, "POST", "apps", map[string]any{"id": appID, "displayName": "Local app"}, 201)
-	if recreated["id"] != appID {
-		t.Fatalf("app ID changed on recreation: %v", recreated)
+	if recreated["servicePrincipalId"] != oid {
+		t.Fatalf("oid changed on reset: %v", recreated)
 	}
 }

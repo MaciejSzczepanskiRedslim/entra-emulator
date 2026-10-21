@@ -269,8 +269,8 @@ func TestBuildAppOnlyResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate app-only: %v", err)
 	}
-	if vt.OID != "" {
-		t.Fatal("app-only token should have no oid")
+	if vt.OID != store.ServicePrincipalID(svc.Cfg.TenantID, app.ID) || vt.OID == app.ID || vt.Claims["idtyp"] != "app" {
+		t.Fatalf("app-only object identity = %v", vt.Claims)
 	}
 	if vt.Claims["appid"] != app.ID {
 		t.Fatalf("appid = %v", vt.Claims["appid"])
@@ -297,6 +297,9 @@ func TestBuildAppOnlyResponseNonHomeTenant(t *testing.T) {
 	}
 	if claims["iss"] != svc.issuerForTenant(otherTenant) {
 		t.Fatalf("iss = %v", claims["iss"])
+	}
+	if claims["oid"] != store.ServicePrincipalID(otherTenant, app.ID) || claims["oid"] == store.ServicePrincipalID(svc.Cfg.TenantID, app.ID) {
+		t.Fatalf("service-principal oid must belong to issuing tenant: %v", claims)
 	}
 	// Token validates as the non-home tenant's issuer.
 	if _, err := svc.ValidateAccessToken(resp.AccessToken, []string{svc.Cfg.GraphResourceID}); err != nil {
