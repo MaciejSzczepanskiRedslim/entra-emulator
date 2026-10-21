@@ -3,6 +3,7 @@ package server
 import (
 	"net"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/calvinchengx/entra-emulator/internal/config"
@@ -81,5 +82,23 @@ func TestListenErrors(t *testing.T) {
 	cfg3.Host, cfg3.Port, cfg3.TLSEnabled = "127.0.0.1", port, true
 	if err := srv3.Listen(); err == nil {
 		t.Fatal("TLS Listen on a taken port should error")
+	}
+}
+
+// An unbracketed IPv6 HOST must reach the listener, rather than failing URL
+// parsing with "too many colons". A held port lets the test fail without a server.
+func TestListenIPv6Host(t *testing.T) {
+	ln, err := net.Listen("tcp6", "[::1]:0")
+	if err != nil {
+		t.Skipf("IPv6 unavailable: %v", err)
+	}
+	defer ln.Close()
+	for _, host := range []string{"::1", "[::1]"} {
+		srv, cfg := buildServer(t, nil)
+		cfg.Host, cfg.Port, cfg.TLSEnabled = host, ln.Addr().(*net.TCPAddr).Port, false
+		err := srv.Listen()
+		if err == nil || !strings.Contains(err.Error(), "address already in use") {
+			t.Fatalf("HOST=%q: want listener collision, got %v", host, err)
+		}
 	}
 }

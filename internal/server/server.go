@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -250,7 +251,7 @@ func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 // Listen starts serving (TLS unless disabled) and blocks.
 func (s *Server) Listen() error {
-	addr := fmt.Sprintf("%s:%d", s.Cfg.Host, s.Cfg.Port)
+	addr := net.JoinHostPort(strings.Trim(s.Cfg.Host, "[]"), strconv.Itoa(s.Cfg.Port))
 	handler := s.Handler
 	if s.Cfg.RequestLog {
 		handler = logRequests(handler)
